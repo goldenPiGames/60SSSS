@@ -1,20 +1,28 @@
 const MIN_SOLID_SIZE = 5;
 const MAX_REAL_STEP_2 = 0.25;
+const STAY_GROUNDED_MULT = 5;
 
-class PhysicsBody {
+class Body {
 	
 }
 
-class UprightEllipseBody extends PhysicsBody {
+class UprightEllipseBody extends Body {
 	constructor(args) {
 		super();
-		this.midX = args.midX;
-		this.midY = args.midY || args.footY - args.height/2,
 		this.rHoriz = args.rHoriz || args.width/2,
 		this.rVert = args.rVert || args.height/2,
 		this.rotation = args.rotation || 0;
+		if (args.footX && args.footY) {
+			var vect = new VectorPolar(this.rVert, this.rotation);
+			this.midX = args.footX + vect.x;
+			this.midY = args.footY + vect.y;
+		} else {
+			this.midX = args.midX;
+			this.midY = args.midY || args.footY - args.height/2;//doesn't like getting 0, should probably fix
+		}
 		this.slideGround = args.slideGround || 0;
 		this.slideAir = args.slideAir || 1;
+		this.groundTolerance = args.groundTolerance || Math.PI/4,
 		this.dx = 0;
 		this.dy = 0;
 		this.doesGravity = args.doesGravity == undefined ? 1 : args.doesGravity;
@@ -25,9 +33,16 @@ class UprightEllipseBody extends PhysicsBody {
 		//console.log(this.grounded)
 		var grav = stage.getGravityAtPixel(this.getCenterX(), this.getCenterY())
 		this.rotation = grav.theta-Math.PI;
-		if (this.grounded) {
-			this.attemptMove(stage, {dx:grav.x, dy:grav.y});
+		if (this.grounded && !this.allowJumpNext) {
+			var hypothesis = new UprightEllipseBody(this);
+			hypothesis.attemptMove(stage, {dx:grav.x*STAY_GROUNDED_MULT, dy:grav.y*STAY_GROUNDED_MULT});
+			if (hypothesis.checkGrounded) {
+				this.midX = hypothesis.midX;
+				this.midY = hypothesis.midY;
+				this.setRelativeDY(this.getRelativeDY()/STAY_GROUNDED_MULT)
+			}
 		}
+		this.allowJumpNext = false;
 		this.unOverlap(stage);
 		if (this.doesGravity && !this.checkGrounded(stage)) {
 			this.dx += grav.x * this.doesGravity;
@@ -65,19 +80,22 @@ class UprightEllipseBody extends PhysicsBody {
 		var baseStepLength = 1 / Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / (args.stepSize || MIN_SOLID_SIZE));
 		//console.log(baseStepLength)
 		var stepLength = baseStepLength;
-		while (stepped < 1.0 && loops < 6969) {
+		while (stepped < 1.0 && loops < 69) {
 			//console.log(stepLength);
 			loops++;
 			var hypothesis = new UprightEllipseBody(this);
 			hypothesis.midX = this.midX + dx * stepLength;
 			hypothesis.midY = this.midY + dy * stepLength;
-			var norm = hypothesis.checkCollideNormal(stage);
-			if (!norm) {
+			var norms = hypothesis.checkCollideNormals(stage);
+			if (!norms || norms.length < 1) {
 				stepped += stepLength;
 				this.midX = hypothesis.midX;
 				this.midY = hypothesis.midY;
 			} else if (stepLength*(dx*dx+dy*dy) < MAX_REAL_STEP_2) {
-				var newv = cancelVectorNormal(new VectorRect(dx, dy), norm);
+				var newv = new VectorRect(dx, dy);
+				for (var i = 0; i < norms.length; i++) {
+					newv = cancelVectorNormal(newv, norms[i]);
+				}
 				dx = newv.x;
 				dy = newv.y;
 				if (own) {
@@ -89,18 +107,31 @@ class UprightEllipseBody extends PhysicsBody {
 				stepLength /= 2;
 			}
 		}
+		//console.log(loops)
+		if (loops >= 69) {
+			//console.log("reached the failsafe, probably a problem")
+			this.unOverlap(stage, 1)
+		}
 		//console.log("After:", this.midX, this.midY, this.dx, this.dy);
 		//console.log("Change:", this.midX-bx)
 	}
-	checkCollideNormal(stage) {
+	checkCollideNormal(stage, out = 0) {
 		for (var t = -Math.PI; t <= Math.PI; t += Math.PI/8) {
-			if (this.isEdgeSolid(stage, t, 0))
+			if (this.isEdgeSolid(stage, t, out))
 				return new UnitVector(this.rotation+t-Math.PI);
 		}
 		return false;
 	}
-	unOverlap(stage) {
-		var norm = this.checkCollideNormal(stage);
+	checkCollideNormals(stage, out = 0) {
+		var toret = [];
+		for (var t = -Math.PI; t <= Math.PI; t += Math.PI/8) {
+			if (this.isEdgeSolid(stage, t, out))
+				toret.push(new UnitVector(this.rotation+t-Math.PI));
+		}
+		return toret;
+	}
+	unOverlap(stage, out=0) {
+		var norm = this.checkCollideNormal(stage, out);
 		if (norm) {
 			this.midX += norm.x;
 			this.midY += norm.y;
@@ -111,6 +142,10 @@ class UprightEllipseBody extends PhysicsBody {
 	}
 	getCenterY() {
 		return this.midY;
+	}
+	getRTowards(x, y) {
+		//TODO actually account for being elliptical
+		return this.rVert;
 	}
 	//is pixel solid relative inner from bottom
 	isEdgeSolid(stage, relAngle, out) {//TODO actually account for rotation
@@ -123,8 +158,16 @@ class UprightEllipseBody extends PhysicsBody {
 		return this.midY + (this.rHoriz+out)*Math.sin(relAngle)*Math.sin(this.rotation) - (this.rVert+out)*Math.cos(relAngle)*Math.cos(this.rotation);
 	}
 	checkGrounded(stage) {
-		this.grounded = this.isEdgeSolid(stage, Math.PI, 1);
-		return this.rounded;
+		for (var i = 0; i < this.groundTolerance; i+=Math.PI/8) {
+			if (this.isEdgeSolid(stage, Math.PI+i, 1) || this.isEdgeSolid(stage, Math.PI-i, 1)) {
+				//console.log("y")
+				this.grounded = true;
+				return true;
+			}
+		}
+		//console.log("n")
+		this.grounded = false;
+		return false;
 	}
 	getRelativeDX() {
 		return new VectorRect(this.dx, this.dy).rotate(-this.rotation).x;
@@ -161,6 +204,13 @@ class UprightEllipseBody extends PhysicsBody {
 	}
 	jump(speed) {
 		this.setRelativeDY(-Math.abs(speed));
+		this.allowJumpNext = true;
+	}
+	intersects(other) {
+		//TODO if I have kinds of body other than ellipse, I'll need to add some switch statements or something
+		var dist2 = (this.midX-other.midX)**2+(this.midY-other.midY)**2;
+		var reach2 = (this.getRTowards(other.midX, other.midY) + other.getRTowards(this.midX, this.midY))**2;
+		return dist2 <= reach2;
 	}
 	drawTest(args = {}) {
 		worldCtx.fillStyle = args.color || "#FF0000";
@@ -176,6 +226,38 @@ class UprightEllipseBody extends PhysicsBody {
 				worldCtx.fill();
 			});
 		}
+	}
+}
+//UprightEllipseBody.prototype.
+
+class RayBody extends Body {
+	constructor(args) {
+		super();
+		this.x = args.x;
+		this.y = args.y;
+		this.r = args.r;
+		this.width = args.width || 0;
+		this.rotation = args.rotation || 0;
+	}
+	intersects(other) {
+		var vect = new VectorPolar(this.r, this.rotation);
+		//console.log(other.midX, this.x, vect.x, other.midY, this.y, vect.y, this.r**2);
+		var t = ((other.midX - this.x) * vect.x + (other.midY - this.y) * vect.y) / this.r**2;
+		//console.log(t);
+		if (t < 0 || t > 1)
+			return false;
+		return (this.x + t*vect.x - other.midX)**2 + (this.y + t*vect.y - other.midY)**2 <= (this.width + other.rHoriz)**2;
+	}
+	drawTest(args = {}) {
+		
+		var vect = new VectorPolar(this.r, this.rotation);
+		//console.log(vect)
+		worldCtx.lineWidth = Math.max(this.width, 1);
+		worldCtx.strokeStyle = "#FF0000";
+		worldCtx.beginPath();
+		worldCtx.moveTo(this.x, this.y);
+		worldCtx.lineTo(this.x+vect.x, this.y+vect.y);
+		worldCtx.stroke();
 	}
 }
 

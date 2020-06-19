@@ -43,15 +43,15 @@ function begin() {
 	});*/
 	//TODO make spritesheet for misc sprites
 	//miscSprites = makeSprites("src/MiscSprites.png")
-	//loadDefaultSFX();
-	//applySettings();
+	initSFX();
+	loadSettings();
 	
 	begin2();
 }
 function begin2() {
 	//runnee = new SingleStageEngine(new DemoStageGrid());
-	//runnee = new SingleStageEngine(new DemoStagePlanet());
-	runnee = new SingleStageEngine(new Stage60SSS_Meteor());
+	//runnee = new SingleStageEngine(new Stage60SSSS_Meteor());
+	runnee = new SolarSystemEngine();
 	engine.run();
 	//loadStage("TutorialMovement");
 }
@@ -62,61 +62,6 @@ var loadReturn = function(){};
 function resetLoading() {
 	loadingTotal = 0;
 	loadedYet = 0;
-}
-function makeImage(src) {
-	var img = new Image();
-	loadingTotal++;
-	img.loaded = false;
-	img.onload = function() {
-		loadedYet++;
-		//img.crossOrigin = "anonymous";
-		img.loaded = true;
-		if (loadedYet >= loadingTotal) {
-			resetLoading();
-			loadReturn();
-		}
-	};
-	img.src = src;
-	return img;
-}
-
-function makeSprites(sauce, sec, prel = true) {
-	var image;
-	if (typeof sauce == "string") {
-		if (prel)
-			image = makeImage(sauce);
-	} else {
-		image = sauce;
-		sauce = image.src;
-	}
-	var sheetData = {image:image, src:sauce};
-	if (Array.isArray(sec)) {
-		var subs = Array.prototype.slice.call(arguments, 1);
-		subs.forEach(function(oj) {
-			oj.image = sauce;
-			sheetData[oj.name] = oj;
-			oj.parent = sheetData;
-		});
-	} else {
-		for (var sub in sec) {
-			sheetData[sub] = sec[sub];
-			sheetData[sub].image = image;
-			sheetData[sub].parent = sheetData;
-		}
-	}
-	return sheetData;
-}
-
-function loadSprites(data) {
-	//console.log(data);
-	if (data) {
-		var image = makeImage(data.src);
-		//console.log(image);
-		data.image = image;
-		for (var sub in data) {
-			data[sub].image = image;
-		}
-	}
 }
 
 function doNothing() {};

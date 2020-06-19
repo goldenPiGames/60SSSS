@@ -1,18 +1,22 @@
 var player;
 
-class BasePlayer extends Actor {
+class BasePlayer extends Mob {
 	constructor(args) {
-		super();
+		super({
+			maxhp : 3,
+		});
 		this.body = new UprightEllipseBody({
 			midX : args.midX,
 			midY : args.midY,
+			footX : args.footX,
 			footY : args.footY,
 			width : 14,
-			height : 37,
+			height : 36,
 			compressible : 17,
 			slideGround : .6,
 			slideAir : .95,
 		});
+		this.hittable = this.body;
 		this.facing = args.facing;
 		this.spriteSheet = getSpriteSheet("Player");
 		player = this;
@@ -78,6 +82,10 @@ class BasePlayer extends Actor {
 	draw() {
 		//this.body.drawTest({rads:TEST_RADS});
 		this.spriteSheet.drawOnWorld(this.drawState+this.drawCount, {x:this.body.midX, y:this.body.midY, xadj:.5, yadj:.5, rotation:this.body.rotation, flipHoriz:!this.facing});
+	}
+	getHit(args) {
+		super.getHit(args);
+		playSFX("Hurt");
 	}
 }
 BasePlayer.prototype.controller = globalController;

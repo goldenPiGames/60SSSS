@@ -1,5 +1,5 @@
 const SPRITE_DATA = {
-	"Demo" : {
+	"TilesetDemo" : {
 		"solidAll" : {x:20, y:20, width:20, height:20},
 		"solidExtCornerUL" : {x:0, y:0, width:20, height:20},
 		"solidExtCornerUR" : {x:40, y:0, width:20, height:20},
@@ -13,6 +13,10 @@ const SPRITE_DATA = {
 	"Clock160brown" : {
 		body : {x:0, y:0, width:160, height:160},
 		hand : {x:160, y:0, width:20, height:160},
+	},
+	"ClockRadGridTest" : {
+		body : {x:0, y:0, width:960, height:960},
+		//hand : {x:160, y:0, width:300, height:160},
 	},
 	"Player" : {
 		standing0 : {x:0, y:0, width:20, height:40},

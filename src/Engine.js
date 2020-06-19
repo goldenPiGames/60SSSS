@@ -4,7 +4,7 @@ var loading = {
 	},
 	draw : function() {
 		mainCtx.globalAlpha = 1;
-		clearCanvases();
+		clearCanvas();
 	}
 }
 var runnee = loading;
