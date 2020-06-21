@@ -2,7 +2,7 @@ var settings = {
 	//lang : "en",
 	music : .8,
 	sfx : .8,
-	sfxTick : true,
+	sfxTick : false,
 	focusOutPause : true,
 	profanity : false,
 	font : "sans-serif",

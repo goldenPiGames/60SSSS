@@ -11,7 +11,7 @@ class BasePlayer extends Mob {
 			footX : args.footX,
 			footY : args.footY,
 			width : 14,
-			height : 36,
+			height : 35,
 			compressible : 17,
 			slideGround : .6,
 			slideAir : .95,
@@ -19,6 +19,8 @@ class BasePlayer extends Mob {
 		this.hittable = this.body;
 		this.facing = args.facing;
 		this.spriteSheet = getSpriteSheet("Player");
+		this.drawCount = 0;
+		this.drawState = "jumping";
 		player = this;
 	}
 	update(stage) {
@@ -80,6 +82,8 @@ class BasePlayer extends Mob {
 		this.drawStateLast = this.drawState;
 	}
 	draw() {
+		if (this.dontDraw)
+			return;
 		//this.body.drawTest({rads:TEST_RADS});
 		this.spriteSheet.drawOnWorld(this.drawState+this.drawCount, {x:this.body.midX, y:this.body.midY, xadj:.5, yadj:.5, rotation:this.body.rotation, flipHoriz:!this.facing});
 	}
